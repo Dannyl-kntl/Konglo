@@ -8,8 +8,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ========== GANTI DENGAN DATA BARU KAMU ==========
-TOKEN = "TOKEN_BARU_KAMU"   # Ganti dengan token baru dari @BotFather
-CHAT_ID = "8995282419"      # ID Telegram kamu
+TOKEN = "8530677074:AAFATNDsDfbQ4HJ5dmW_-coeW69cgSzimiY"   # Ganti dengan token baru dari @BotFather
+CHAT_ID = "8467853860"      # ID Telegram kamu
 # =================================================
 
 LIST_KONGLO = [
