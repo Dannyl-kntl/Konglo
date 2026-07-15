@@ -1,4 +1,4 @@
-# ===== BOT SCAN SAHAM KONGLO VERSI HTML (FORMAT TEBAL AMAN) =====
+# ===== BOT SCAN SAHAM KONGLO (FORMAT MIRIP BSJP) =====
 import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
@@ -7,11 +7,12 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-# ========== GANTI DENGAN DATA BARU KAMU ==========
+# ========== GANTI DENGAN DATA ASLI KAMU ==========
 TOKEN = "8530677074:AAFATNDsDfbQ4HJ5dmW_-coeW69cgSzimiY"   # Ganti dengan token baru dari @BotFather
 CHAT_ID = "8467853860"      # ID Telegram kamu
 # =================================================
 
+# DAFTAR SAHAM KONGLO (Update Juli 2026)
 LIST_KONGLO = [
     'BREN.JK', 'DSSA.JK', 'SMAR.JK', 'MORA.JK',  # Sinar Mas
     'BELI.JK', 'BBCA.JK', 'TOWR.JK', 'MTEL.JK',  # Djarum
@@ -22,21 +23,20 @@ LIST_KONGLO = [
 ]
 
 def kirim_pesan(pesan):
-    """Kirim pesan ke Telegram dalam mode HTML (aman untuk karakter _ dan ())"""
+    """Kirim pesan ke Telegram dalam mode HTML (aman untuk karakter spesial)"""
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        # Gunakan parse_mode='HTML' agar tag <b> bisa terbaca
         resp = requests.get(url, params={
             'chat_id': CHAT_ID, 
             'text': pesan, 
-            'parse_mode': 'HTML'  # <--- INI PERUBAHAN UTAMA!
+            'parse_mode': 'HTML'  # Mode HTML lebih aman
         }, timeout=10)
         
         if resp.status_code == 200:
             print("✅ Pesan berhasil terkirim!")
         else:
             print(f"❌ Error: {resp.status_code}")
-            print(f"📝 Detail dari Telegram: {resp.text}") 
+            print(f"📝 Detail: {resp.text}") 
     except Exception as e:
         print(f"❌ Gagal konek: {e}")
 
@@ -48,8 +48,10 @@ def analisis_konglo(kode):
             return None
         
         info = saham.info
+        
+        # === INDIKATOR TEKNIKAL ===
         df['RSI'] = ta.rsi(df['Close'], length=14)
-        df['MA50'] = ta.sma(df['Close'], length=50)
+        df['MA50'] = ta.sma(df['Close'], length=50)  # MA50 untuk jangka menengah
         df['ATR'] = ta.atr(df['High'], df['Low'], df['Close'], length=14)
         
         last = df.iloc[-1]
@@ -60,16 +62,20 @@ def analisis_konglo(kode):
         volume_ratio = vol_hari_ini / avg_vol_20 if avg_vol_20 > 0 else 0
         
         harga = last['Close']
+        atr = last['ATR']
         perubahan = ((harga - prev['Close']) / prev['Close']) * 100
         
-        # Kriteria Konglo
+        # === KRITERIA KONGLO SEHAT ===
+        # 1. Harga di atas MA50 (tren naik 2.5 bulan)
+        # 2. RSI sehat (40-70)
+        # 3. Volume tidak liar (rasio < 2.5x)
         kondisi_konglo = (
             harga > last['MA50'] and
             40 < last['RSI'] < 70 and
             volume_ratio < 2.5
         )
         
-        # Tentukan grup
+        # === TENTUKAN GRUP ===
         grup = "Unknown"
         if kode in ['BREN.JK', 'DSSA.JK', 'SMAR.JK', 'MORA.JK']:
             grup = "Sinar Mas"
@@ -84,16 +90,37 @@ def analisis_konglo(kode):
         elif kode == 'ASII.JK':
             grup = "Astra"
         
+        # === AMBIL DATA FUNDAMENTAL ===
+        pe = info.get('trailingPE', 'N/A')
+        pb = info.get('priceToBook', 'N/A')
+        market_cap = info.get('marketCap', 0)
+        if market_cap > 0:
+            market_cap_t = round(market_cap / 1e12, 2)  # Dalam Triliun
+            kap_str = f"Rp{market_cap_t}T"
+        else:
+            kap_str = "N/A"
+        
+        # === HITUNG SL & TP (pakai ATR) ===
+        sl = round(harga - (1.5 * atr), 2) if atr else 0
+        tp = round(harga + (2.5 * atr), 2) if atr else 0
+        
         return {
             'kode': kode.replace('.JK', ''),
-            'nama': info.get('shortName', kode)[:20],
+            'nama': info.get('shortName', kode)[:25],
             'grup': grup,
             'harga': harga,
             'perubahan': perubahan,
             'rsi': round(last['RSI'], 2),
             'ma50': round(last['MA50'], 2),
+            'volume': int(vol_hari_ini),
+            'avg_vol_20': int(avg_vol_20),
             'volume_ratio': round(volume_ratio, 2),
             'is_konglo': kondisi_konglo,
+            'sl': sl,
+            'tp': tp,
+            'pe': pe,
+            'pb': pb,
+            'kap': kap_str,
         }
     except Exception as e:
         print(f"Error baca {kode}: {e}")
@@ -113,27 +140,31 @@ for kode in LIST_KONGLO:
 sehat = [h for h in semua_hasil if h['is_konglo']]
 waspada = [h for h in semua_hasil if not h['is_konglo']]
 
-# === SUSUN PESAN DENGAN FORMAT HTML (TAG <b> UNTUK TEBAL) ===
+# === SUSUN PESAN FORMAT MIRIP BSJP (PAKAI HTML) ===
 pesan = "<b>🏛️ SCAN SAHAM KONGLO</b> - " + waktu + "\n"
-pesan += "<b>Total:</b> " + str(len(semua_hasil)) + " saham\n"
+pesan += "<b>Total:</b> " + str(len(semua_hasil)) + " saham | <b>Sinyal:</b> " + str(len(sehat)) + "\n"
 pesan += "================================\n\n"
 
 if sehat:
-    pesan += "<b>✅ SAHAM KONGLO SEHAT (TREN NAIK)</b>\n\n"
-    for h in sehat[:5]:
-        # Ganti *...* menjadi <b>...</b>
-        pesan += "🏢 <b>" + h['kode'] + "</b> - " + h['grup'] + "\n"
-        pesan += "   Harga: Rp" + f"{h['harga']:.0f}" + " | Perubahan: " + f"{h['perubahan']:+.2f}" + "%\n"
-        pesan += "   RSI: " + str(h['rsi']) + " | MA50: Rp" + str(round(h['ma50'])) + "\n"
-        pesan += "   Volume vs Rata2: " + str(h['volume_ratio']) + "x\n"
+    pesan += "<b>🔥 DAFTAR KONGLO SEHAT (TREN NAIK)</b>\n\n"
+    for h in sehat[:5]:  # Tampilkan maksimal 5
+        pesan += "🏢 <b>" + h['kode'] + "</b> - " + h['nama'] + "\n"
+        pesan += "💰 Rp" + f"{h['harga']:.0f}" + " | 📈 " + f"{h['perubahan']:+.2f}" + "%\n"
+        pesan += "📊 RSI: " + str(h['rsi']) + " | MA50: Rp" + f"{h['ma50']:.0f}" + "\n"
+        pesan += "📦 Vol: " + f"{h['volume']:,}" + " | Rata2 20H: " + f"{h['avg_vol_20']:,}" + " | Rasio: " + str(h['volume_ratio']) + "x\n"
+        pesan += "🏢 Grup: " + h['grup'] + "\n"
+        pesan += "💡 <b>Rekomendasi:</b> Akumulasi bertahap untuk jangka menengah\n"
+        pesan += "🔴 <b>Stop Loss:</b> Rp" + f"{h['sl']:.0f}" + " | 🟢 <b>Take Profit:</b> Rp" + f"{h['tp']:.0f}" + "\n"
+        pesan += "📋 PE: " + str(h['pe']) + " | PB: " + str(h['pb']) + " | Kap: " + h['kap'] + "\n"
         pesan += "------------------------\n"
 else:
-    pesan += "⏳ Belum ada saham konglo yang memenuhi kriteria.\n\n"
+    pesan += "⏳ Belum ada saham konglo yang memenuhi kriteria sehat.\n\n"
 
+# Tambahkan 3 saham waspada (RSI tinggi atau volume aneh) untuk pantauan
 if waspada:
-    pesan += "<b>⚠️ PERHATIAN (RSI Tinggi / Volume Anomali)</b>\n"
+    pesan += "<b>📈 PANTAUAN (RSI Tertinggi):</b>\n"
     for h in sorted(waspada, key=lambda x: x['rsi'], reverse=True)[:3]:
-        pesan += "🔹 " + h['kode'] + " | RSI: " + str(h['rsi']) + " | Vol: " + str(h['volume_ratio']) + "x\n"
+        pesan += "🔹 " + h['kode'] + " (RSI: " + str(h['rsi']) + ") - Rp" + f"{h['harga']:.0f}" + "\n"
 
 # Kirim ke Telegram
 kirim_pesan(pesan)
