@@ -27,11 +27,14 @@ LIST_KONGLO = [
 def kirim_pesan(pesan):
     try:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        resp = requests.get(url, params={'chat_id': CHAT_ID, 'text': pesan, 'parse_mode': 'Markdown'}, timeout=10)
+        # HAPUS DULU 'parse_mode' biar tidak pusing dengan format tebal
+        resp = requests.get(url, params={'chat_id': CHAT_ID, 'text': pesan}, timeout=10)
+        
         if resp.status_code == 200:
             print("✅ Pesan terkirim!")
         else:
             print(f"❌ Error: {resp.status_code}")
+            print(f"📝 Detail Telegram: {resp.text}")  # Ini penting buat cari tahu error pastinya
     except Exception as e:
         print(f"❌ Gagal kirim: {e}")
 
