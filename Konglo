@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 🔴 GANTI DENGAN TOKEN BARU KAMU ---
-TOKEN = "8995282419:AAHGtJIb3oeJHtf0LmmeSIpMNpNwjXv1ZK4"
+TOKEN = "8530677074:AAFATNDsDfbQ4HJ5dmW_-coeW69cgSzimiY"
 CHAT_ID = "8995282419"  # atau ID grup
 # -----------------------------------------
 
