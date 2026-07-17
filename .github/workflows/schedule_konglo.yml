@@ -2,7 +2,7 @@ name: Scan Konglo Sore
 
 on:
   schedule:
-    - cron: '30 8 * * 1-5'
+    - cron: '30 8 * * 1-5'   # 08:30 UTC = 16:30 WITA
   workflow_dispatch:
 
 jobs:
